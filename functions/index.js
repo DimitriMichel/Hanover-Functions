@@ -1,17 +1,28 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
+
+const express = require("express");
+const app = express();
 const db = admin.firestore();
 
-// DB Document References
+//Server Error Codes
+/*
+400 Bad Request.
+401 Unauthorized.
+403 Forbidden.
+404 Not Found.
+500 Internal Server Error.
+502 Bad Gateway.
+503 Service Unavailable.
+504 Gateway Timeout.
+*/
+
+//DB Document References
 const stocksRef = db.collection("stocks");
 
-// HTTP functions
-exports.helloWorld = functions.https.onRequest((request, response) => {
-  response.send("Hello World from Firebase!");
-});
-
-exports.getStocks = functions.https.onRequest((request, response) => {
+//Routes
+app.get("/stocks", (request, response) => {
   stocksRef
     .get()
     .then((snapshot) => {
@@ -24,14 +35,21 @@ exports.getStocks = functions.https.onRequest((request, response) => {
     .catch((err) => console.log(err));
 });
 
-exports.pickStock = functions.https.onRequest((request, response) => {
+app.post("/stock", (request, response) => {
   const newStock = {
-    body: request.body.ticker,
+    ticker: request.body.ticker,
     userName: request.body.userName,
     createdAt: admin.firestore.Timestamp.fromDate(new Date()),
   };
-    db.collection('stocks').add(newStock).then(ref => {
-        response.json({message: 'New stock added to collection!'})
+  stocksRef
+    .add(newStock)
+    .then((ref) => {
+      response.json({ message: `New document ${ref.id} added to collection!` });
     })
-
+    .catch((err) => {
+      response.status(500).json({ error: "Something Went Wrong" });
+      console.error(err);
+    });
 });
+
+exports.api = functions.https.onRequest(app);
