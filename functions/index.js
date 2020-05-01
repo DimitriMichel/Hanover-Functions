@@ -21,7 +21,6 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-
 // Server Codes
 /*
 //Errors
@@ -74,8 +73,8 @@ app.post("/stock", (request, response) => {
   };
   stocksRef
     .add(newStock)
-    .then((ref) => {
-      response.json({ message: `New document ${ref.id} added to collection!` });
+    .then((doc) => {
+      response.json({ message: `New document ${doc.id} added to collection!` });
     })
     .catch((err) => {
       response.status(500).json({ error: "Something Went Wrong" });
@@ -93,16 +92,45 @@ app.post("/register", (request, response) => {
   };
 
   //TODO Validate Data
-  firebase
-    .auth()
-    .createUserWithEmailAndPassword(newUser.email, newUser.password)
+  let token, userID;
+  db.doc(`/users/${newUser.userName}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        return response
+          .status(400)
+          .json({ userName: "This username is taken." });
+      } else {
+        return firebase
+          .auth()
+          .createUserWithEmailAndPassword(newUser.email, newUser.password);
+      }
+    })
     .then((ref) => {
-      return response
-        .status(201)
-        .json({ message: `User ${ref.user.uid} Registration Successful` });
+      userID = ref.user.uid;
+      return ref.user.getIdToken();
+    })
+    .then((token) => {
+      token = token;
+      const userCredentials = {
+        userName: newUser.userName,
+        email: newUser.email,
+        createdAt: new Date().toISOString(),
+        userID,
+      };
+      db.doc(`users/${newUser.userName}`).set(userCredentials);
+    })
+    .then(() => {
+      return response.status(201).json({ token });
     })
     .catch((err) => {
-      response.status(500).json({ error: err.code });
+      if (err.code === "auth/email-already-in-use") {
+        return response
+          .status(400)
+          .json({ email: "This email is already in use." });
+      } else {
+        return response.status(500).json({ err: err.code });
+      }
     });
 });
 
