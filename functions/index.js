@@ -101,6 +101,7 @@ app.post("/register", (request, response) => {
     password: request.body.password,
     confirmPassword: request.body.confirmPassword,
     userName: request.body.userName,
+    holdings: [],
   };
 
   //Validators & Errors Object
@@ -121,7 +122,7 @@ app.post("/register", (request, response) => {
   }
   console.log(errors);
 
-  //Check for any errors in Errors object
+  //Check for any sign up errors in Errors object
   if (Object.keys(errors).length > 0) {
     return response.status(400).json(errors);
   }
@@ -169,6 +170,44 @@ app.post("/register", (request, response) => {
     });
 });
 
-//adds /api to base url
+//User Login
+app.post("login", (request, response) => {
+  const user = {
+    email: request.body.email,
+    password: request.body.password,
+  };
+
+  //Check for any login errors in Errors object
+  let errors = {};
+  if (isEmpty(user.email)) {
+    errors.email = "Cannot be empty";
+  }
+  if (isEmpty(user.password)) {
+    errors.password = "Cannot be empty";
+  }
+  if (Object.keys(errors) > 0) {
+    return response.status(400).json(errors);
+  }
+  //Authenticate User in Firebase
+  firebase
+    .auth()
+    .signInWithEmailAndPassword(user.email, user.password)
+    .then((ref) => {
+      return ref.user.getIdToken();
+    })
+    .then((token) => {
+      return response.json({ token });
+    })
+    .catch((err) => {
+      console.log(err);
+      if (err.code === "auth/wong-password") {
+        return response.status(500).json({ general: "Wrong credentials." });
+      } else {
+        return response.status(500).json({ error: err.code });
+      }
+    });
+});
+
+// adds /api to base url
 //ex: https://baseurl.com/api/stocks
 exports.api = functions.region("us-east1").https.onRequest(app);
