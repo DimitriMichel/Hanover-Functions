@@ -1,3 +1,6 @@
+import { firebaseConfig } from "./utils/config";
+import { response } from "express";
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
@@ -6,17 +9,6 @@ const app = express();
 const db = admin.firestore();
 // Initialize Firebase
 const firebase = require("firebase");
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCdJXERb748VYBpB-xHdSqU-ikqaTvJyWw",
-  authDomain: "hanover-c2d8f.firebaseapp.com",
-  databaseURL: "https://hanover-c2d8f.firebaseio.com",
-  projectId: "hanover-c2d8f",
-  storageBucket: "hanover-c2d8f.appspot.com",
-  messagingSenderId: "737808202094",
-  appId: "1:737808202094:web:e3b6ed58d305d1191ea97f",
-  measurementId: "G-HC6247CWMY",
-};
 
 firebase.initializeApp(firebaseConfig);
 
@@ -43,6 +35,19 @@ firebase.initializeApp(firebaseConfig);
 const stocksRef = db.collection("stocks");
 const usersRef = db.collection("users");
 
+//Authentication Middleware
+const FBAuth = (request, response, next) => {
+  let idToken;
+  if (
+    request.headers.authorization &&
+    request.headers.authorization.startsWith("Bearer ")
+  ) {
+    idToken = request.headers.authorization.split("Bearer ")[1];
+  } else {
+    console.log("Token Not Found");
+    return response.status(403).json({ error: "Unauthorized" });
+  }
+};
 // Routes
 // Get all user stocks
 app.get("/stocks", (request, response) => {
@@ -171,7 +176,7 @@ app.post("/register", (request, response) => {
 });
 
 //User Login
-app.post("login", (request, response) => {
+app.post("/login", (request, response) => {
   const user = {
     email: request.body.email,
     password: request.body.password,
