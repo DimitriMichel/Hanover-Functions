@@ -4,7 +4,6 @@ admin.initializeApp();
 const express = require("express");
 const app = express();
 const db = admin.firestore();
-
 // Initialize Firebase
 const firebase = require("firebase");
 
@@ -126,12 +125,12 @@ app.post("/register", (request, response) => {
   if (Object.keys(errors).length > 0) {
     return response.status(400).json(errors);
   }
-
+  console.log(errors);
   let token, userID;
-  usersRef
-    .doc(`users/${newUser.userName}`)
+  db.doc(`/users/${newUser.userName}`)
     .get()
     .then((doc) => {
+      console.log(doc);
       if (doc.exists) {
         return response
           .status(400)
