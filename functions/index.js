@@ -4,28 +4,24 @@ const app = express();
 
 //Route Functions
 const { getAllStocks, postStock } = require("./handlers/stocks");
-const { registerUser, loginUser } = require("./handlers/users");
-const FBAuth = require('./utils/fbAuth');
+const { getAllStatus, postStatus } = require("./handlers/status");
+const { registerUser, loginUser, uploadImage } = require("./handlers/users");
+
+//Authentication Middleware
+const FBAuth = require("./utils/fbAuth");
 
 /* Stock Routes */
 app.get("/stocks", getAllStocks);
 app.post("/stock", FBAuth, postStock);
 
-//Registration Helpers
-const isEmpty = (string) => {
-  if (string.trim() === "") return true;
-  else return false;
-};
-
-const isEmail = (email) => {
-  const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-  if (email.match(regEx)) return true;
-  else return false;
-};
+/* Status Routes */
+app.get("/statuses", getAllStatus);
+app.post("/status", FBAuth, postStatus);
 
 /* User Routes */
 app.post("/register", registerUser);
 app.post("/login", loginUser);
+app.post("/user/image", FBAuth, uploadImage);
 
 // adds /api to base url
 //ex: https://baseurl.com/api/stocks

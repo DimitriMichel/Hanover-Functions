@@ -1,6 +1,5 @@
 // DB Stock Document Collection Reference
-const { usersRef, db } = require("../utils/admin");
-
+const { db, admin } = require("../utils/admin");
 
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");
@@ -100,4 +99,58 @@ exports.loginUser = (request, response) => {
         return response.status(500).json({ error: error.code });
       }
     });
+};
+
+// Upload an image
+exports.uploadImage = (request, response) => {
+  // Bus Boy upload docs https://github.com/mscdex/busboy#readme
+  const BusBoy = require("busboy");
+  const path = require("path");
+  const os = require("os");
+  const fs = require("fs");
+
+  const busboy = new BusBoy({ headers: request.headers });
+  let imageFileName;
+  let imageToBeUploaded = {};
+
+  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
+    console.log(fieldname);
+    console.log(filename);
+    console.log(mimetype);
+    //Extract image file extension "myImage.jpg" --> "jpg" , "myImage"
+    const imageExtension = filename.split(".")[filename.split(".").length - 1];
+    // Randomize filename
+    const imageFileName = `${Math.round(
+      Math.random() * 100000000000
+    )}.${imageExtension}`;
+    const filepath = path.join(os.tmpdir(), imageFileName);
+    imageToBeUploaded = { filepath, mimetype };
+
+    //Creates file
+    file.pipe(fs.createWriteStream(filepath));
+  });
+  busboy.on("finish", () => {
+    admin
+      .storage()
+      .bucket(`${firebaseConfig.storageBucket}`)
+      .upload(imageToBeUploaded.filepath, {
+        resumable: false,
+        metadata: {
+          metadata: {
+            contentType: imageToBeUploaded.mimetype,
+          },
+        },
+      })
+      .then(() => {
+        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageFileName}?alt=media`;
+        return db.doc(`/users/${request.user.userName}`).update({ imageUrl });
+      })
+      .then(() => {
+        return response.json({ message: "Image Uploaded" });
+      })
+      .catch((error) => {
+        console.error(error);
+        return response.status(500).json({ error: error.code });
+      });
+  });
 };
