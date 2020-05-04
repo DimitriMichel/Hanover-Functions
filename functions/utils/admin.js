@@ -7,4 +7,8 @@ admin.initializeApp();
 // Administrator Database  Access
 const db = admin.firestore();
 
-module.exports = { admin, db };
+// DB Documents Collection References
+const stocksRef = db.collection("stocks");
+const usersRef = db.collection("users");
+
+module.exports = { admin, db, stocksRef, usersRef };

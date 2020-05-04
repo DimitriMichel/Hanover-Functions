@@ -1,6 +1,6 @@
 // DB Stock Document Collection Reference
-const { db } = require("../utils/admin");
-const usersRef = db.collection("stocks");
+const { usersRef, db } = require("../utils/admin");
+
 
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");

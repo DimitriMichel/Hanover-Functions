@@ -1,6 +1,5 @@
 // DB Stock Document Collection Reference
-const db = require("../utils/admin");
-const stocksRef = db.collection("stocks");
+const { stocksRef } = require("../utils/admin");
 
 /*Stock Route Functions*/
 

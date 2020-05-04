@@ -1,6 +1,5 @@
 // DB Document References
-const {admin, db} = require("./admin");
-const usersRef = db.collection("users");
+const {admin, usersRef} = require("./admin");
 
 //Authentication Middleware
 module.exports = (request, response, next) => {
