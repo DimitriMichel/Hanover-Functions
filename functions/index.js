@@ -1,91 +1,15 @@
-import { firebaseConfig } from "./utils/config";
-import { response } from "express";
-
 const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-admin.initializeApp();
 const express = require("express");
 const app = express();
-const db = admin.firestore();
-// Initialize Firebase
-const firebase = require("firebase");
 
-firebase.initializeApp(firebaseConfig);
+//Route Functions
+const { getAllStocks, postStock } = require("./handlers/stocks");
+const { registerUser, loginUser } = require("./handlers/users");
+const FBAuth = require('./utils/fbAuth');
 
-// Server Codes
-/*
-//Errors
-400 Bad Request.
-401 Unauthorized.
-403 Forbidden.
-404 Not Found.
-500 Internal Server Error.
-502 Bad Gateway.
-503 Service Unavailable.
-504 Gateway Timeout.
-//
-//Success
-200 Ok.
-201 Created.
-202 Accepted.
-//
-*/
-
-// DB Document References
-const stocksRef = db.collection("stocks");
-const usersRef = db.collection("users");
-
-//Authentication Middleware
-const FBAuth = (request, response, next) => {
-  let idToken;
-  if (
-    request.headers.authorization &&
-    request.headers.authorization.startsWith("Bearer ")
-  ) {
-    idToken = request.headers.authorization.split("Bearer ")[1];
-  } else {
-    console.log("Token Not Found");
-    return response.status(403).json({ error: "Unauthorized" });
-  }
-};
-// Routes
-// Get all user stocks
-app.get("/stocks", (request, response) => {
-  stocksRef
-    .orderBy("createdAt", "desc")
-    .get()
-    .then((snapshot) => {
-      let stocks = [];
-      snapshot.forEach((doc) => {
-        stocks.push({
-          stockID: doc.id,
-          ticket: doc.data().ticker,
-          userName: doc.data().userName,
-          createdAt: doc.data().createdAt,
-        });
-      });
-      return response.json(stocks);
-    })
-    .catch((err) => console.log(err));
-});
-
-//Send new stock
-app.post("/stock", (request, response) => {
-  const newStock = {
-    ticker: request.body.ticker,
-    userName: request.body.userName,
-    createdAt: new Date().toISOString(),
-  };
-  stocksRef
-    .add(newStock)
-    .then((doc) => {
-      response.json({ message: `New document ${doc.id} added to collection!` });
-    })
-    .catch((err) => {
-      response.status(500).json({ error: "Something Went Wrong" });
-      console.error(err);
-    });
-});
+/* Stock Routes */
+app.get("/stocks", getAllStocks);
+app.post("/stock", FBAuth, postStock);
 
 //Registration Helpers
 const isEmpty = (string) => {
@@ -99,119 +23,9 @@ const isEmail = (email) => {
   else return false;
 };
 
-//User Registration
-app.post("/register", (request, response) => {
-  const newUser = {
-    email: request.body.email,
-    password: request.body.password,
-    confirmPassword: request.body.confirmPassword,
-    userName: request.body.userName,
-    holdings: [],
-  };
-
-  //Validators & Errors Object
-  const errors = {};
-  if (isEmpty(newUser.userName)) {
-    errors.userName = "Cannot be empty.";
-  }
-  if (isEmpty(newUser.email)) {
-    errors.email = "Cannot be empty.";
-  } else if (!isEmail(newUser.email)) {
-    errors.email = "Must be a valid email address";
-  }
-  if (isEmpty(newUser.password)) {
-    errors.password = "Cannot be empty.";
-  }
-  if (newUser.password !== newUser.confirmPassword) {
-    errors.confirmPassword = "Passwords do not match";
-  }
-  console.log(errors);
-
-  //Check for any sign up errors in Errors object
-  if (Object.keys(errors).length > 0) {
-    return response.status(400).json(errors);
-  }
-  console.log(errors);
-  let token, userID;
-  db.doc(`/users/${newUser.userName}`)
-    .get()
-    .then((doc) => {
-      console.log(doc);
-      if (doc.exists) {
-        return response
-          .status(400)
-          .json({ userName: "This username is taken." });
-      } else {
-        return firebase
-          .auth()
-          .createUserWithEmailAndPassword(newUser.email, newUser.password);
-      }
-    })
-    .then((ref) => {
-      userID = ref.user.uid;
-      return ref.user.getIdToken();
-    })
-    .then((token) => {
-      token = token;
-      const userCredentials = {
-        userName: newUser.userName,
-        email: newUser.email,
-        createdAt: new Date().toISOString(),
-        userID,
-      };
-      db.doc(`users/${newUser.userName}`).set(userCredentials);
-    })
-    .then(() => {
-      return response.status(201).json({ token });
-    })
-    .catch((err) => {
-      if (err.code === "auth/email-already-in-use") {
-        return response
-          .status(400)
-          .json({ email: "This email is already in use." });
-      } else {
-        return response.status(500).json({ err: err.code });
-      }
-    });
-});
-
-//User Login
-app.post("/login", (request, response) => {
-  const user = {
-    email: request.body.email,
-    password: request.body.password,
-  };
-
-  //Check for any login errors in Errors object
-  let errors = {};
-  if (isEmpty(user.email)) {
-    errors.email = "Cannot be empty";
-  }
-  if (isEmpty(user.password)) {
-    errors.password = "Cannot be empty";
-  }
-  if (Object.keys(errors) > 0) {
-    return response.status(400).json(errors);
-  }
-  //Authenticate User in Firebase
-  firebase
-    .auth()
-    .signInWithEmailAndPassword(user.email, user.password)
-    .then((ref) => {
-      return ref.user.getIdToken();
-    })
-    .then((token) => {
-      return response.json({ token });
-    })
-    .catch((err) => {
-      console.log(err);
-      if (err.code === "auth/wong-password") {
-        return response.status(500).json({ general: "Wrong credentials." });
-      } else {
-        return response.status(500).json({ error: err.code });
-      }
-    });
-});
+/* User Routes */
+app.post("/register", registerUser);
+app.post("/login", loginUser);
 
 // adds /api to base url
 //ex: https://baseurl.com/api/stocks
