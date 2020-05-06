@@ -1,7 +1,7 @@
 // DB Stock Document Collection Reference
 const { db, admin } = require("../utils/admin");
 require("firebase-functions");
-
+const { uuid } = require("uuidv4");
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");
 const firebase = require("firebase");
@@ -27,6 +27,8 @@ exports.registerUser = (request, response) => {
   const { valid, errors } = validateRegistrationData(newUser);
   if (!valid) return response.status(400).json(errors);
 
+  const noImage = "no-image.png";
+
   // Obtain Authentication Token After Registration
   let token, userID;
   db.doc(`/users/${newUser.userName}`)
@@ -47,11 +49,12 @@ exports.registerUser = (request, response) => {
       userID = ref.user.uid;
       return ref.user.getIdToken();
     })
-    .then((token) => {
-      token = token;
+    .then((idToken) => {
+      token = idToken;
       const userCredentials = {
         userName: newUser.userName,
         email: newUser.email,
+        imageUrl: `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${noImage}?alt=media`,
         createdAt: new Date().toISOString(),
         userID,
       };
@@ -114,24 +117,32 @@ exports.uploadImage = (request, response) => {
   const busboy = new BusBoy({ headers: request.headers });
   let imageFileName;
   let imageToBeUploaded = {};
+  //image token string
+  let generatedToken = uuid();
 
   busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
-    console.log(fieldname);
-    console.log(filename);
-    console.log(mimetype);
+    //Ensure file is an image
+    if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
+      return response.status(400).json({ error: "Wrong file type submitted" });
+    }
     //Extract image file extension "myImage.jpg" --> "jpg" , "myImage"
     const imageExtension = filename.split(".")[filename.split(".").length - 1];
     // Randomize filename
-    const imageFileName = `${Math.round(
-      Math.random() * 100000000000
-    )}.${imageExtension}`;
+    imageFileName = `${Math.round(
+      Math.random() * 1000000000000
+    ).toString()}.${imageExtension}`;
     const filepath = path.join(os.tmpdir(), imageFileName);
     //Resize Image
-    sharp(filepath).withMetadata().resize(200).toFile(filepath);
-
     imageToBeUploaded = { filepath, mimetype };
-
     file.pipe(fs.createWriteStream(filepath));
+
+    /*sharp(filepath)
+        .png()
+      .resize(300, 300)
+      .toFile(filepath)
+      .catch((error) => {
+        console.log(error);
+      });*/
   });
   busboy.on("finish", () => {
     admin
@@ -142,11 +153,13 @@ exports.uploadImage = (request, response) => {
         metadata: {
           metadata: {
             contentType: imageToBeUploaded.mimetype,
+            //Generate token to be appended to imageUrl
+            firebaseStorageDownloadTokens: generatedToken,
           },
         },
       })
       .then(() => {
-        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageFileName}?alt=media`;
+        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageFileName}?alt=media&token=${generatedToken}`;
         return db.doc(`/users/${request.user.userName}`).update({ imageUrl });
       })
       .then(() => {
@@ -157,4 +170,5 @@ exports.uploadImage = (request, response) => {
         return response.status(500).json({ error: error.code });
       });
   });
+  busboy.end(request.rawBody);
 };
