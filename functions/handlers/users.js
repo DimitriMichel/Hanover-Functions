@@ -1,5 +1,6 @@
 // DB Stock Document Collection Reference
 const { db, admin } = require("../utils/admin");
+require("firebase-functions");
 
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");
@@ -108,6 +109,7 @@ exports.uploadImage = (request, response) => {
   const path = require("path");
   const os = require("os");
   const fs = require("fs");
+  const sharp = require("sharp");
 
   const busboy = new BusBoy({ headers: request.headers });
   let imageFileName;
@@ -124,9 +126,11 @@ exports.uploadImage = (request, response) => {
       Math.random() * 100000000000
     )}.${imageExtension}`;
     const filepath = path.join(os.tmpdir(), imageFileName);
+    //Resize Image
+    sharp(filepath).withMetadata().resize(200).toFile(filepath);
+
     imageToBeUploaded = { filepath, mimetype };
 
-    //Creates file
     file.pipe(fs.createWriteStream(filepath));
   });
   busboy.on("finish", () => {

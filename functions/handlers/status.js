@@ -23,10 +23,14 @@ exports.getAllStatus = (request, response) => {
 
 // Send one user status to DB
 exports.postStatus = (request, response) => {
+  //Parse request body for stock tickers --> "Wow $AMZN looks like a buy!" // $AMZN is added to tickerTags
+  const tickerRegex = /(\$[A-Z]{1,5}\b)/g;
+  const tickers = request.body.body.match(tickerRegex);
   const newStatus = {
     body: request.body.body,
     userName: request.body.userName,
     createdAt: new Date().toISOString(),
+    tickerTags: tickers,
   };
   statusRef
     .add(newStatus)
