@@ -1,15 +1,17 @@
 // DB Stock Document Collection Reference
-const { db, admin } = require("../utils/admin");
-require("firebase-functions");
-const { uuid } = require("uuidv4");
+const { admin, usersRef, likesRef } = require("../utils/admin");
+
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");
 const firebase = require("firebase");
 firebase.initializeApp(firebaseConfig);
+require("firebase-functions");
+const { uuid } = require("uuidv4");
 
 const {
   validateRegistrationData,
   validateLoginData,
+  reduceUserDetails,
 } = require("../utils/validators");
 /*User Route Functions*/
 
@@ -31,7 +33,8 @@ exports.registerUser = (request, response) => {
 
   // Obtain Authentication Token After Registration
   let token, userID;
-  db.doc(`/users/${newUser.userName}`)
+  usersRef
+    .doc(`${newUser.userName}`)
     .get()
     .then((doc) => {
       console.log(doc);
@@ -58,7 +61,7 @@ exports.registerUser = (request, response) => {
         createdAt: new Date().toISOString(),
         userID,
       };
-      db.doc(`users/${newUser.userName}`).set(userCredentials);
+      usersRef.doc(`${newUser.userName}`).set(userCredentials);
     })
     .then(() => {
       return response.status(201).json({ token });
@@ -132,17 +135,18 @@ exports.uploadImage = (request, response) => {
       Math.random() * 1000000000000
     ).toString()}.${imageExtension}`;
     const filepath = path.join(os.tmpdir(), imageFileName);
-    //Resize Image
+
     imageToBeUploaded = { filepath, mimetype };
     file.pipe(fs.createWriteStream(filepath));
 
-    /*sharp(filepath)
-        .png()
+    //Resize Image
+    sharp(filepath)
+      .png()
       .resize(300, 300)
       .toFile(filepath)
       .catch((error) => {
         console.log(error);
-      });*/
+      });
   });
   busboy.on("finish", () => {
     admin
@@ -160,7 +164,7 @@ exports.uploadImage = (request, response) => {
       })
       .then(() => {
         const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageFileName}?alt=media&token=${generatedToken}`;
-        return db.doc(`/users/${request.user.userName}`).update({ imageUrl });
+        return usersRef.doc(`${request.user.userName}`).update({ imageUrl });
       })
       .then(() => {
         return response.json({ message: "Image Uploaded" });
@@ -171,4 +175,46 @@ exports.uploadImage = (request, response) => {
       });
   });
   busboy.end(request.rawBody);
+};
+
+// Add user details
+exports.addUserDetails = (request, response) => {
+  let userDetails = reduceUserDetails(request.body);
+  usersRef
+    .doc(`${request.user.userName}`)
+    .update(userDetails)
+    .then(() => {
+      return response.json({ message: "Details added successfully" });
+    })
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
+};
+
+//Get Authenticated User's Details
+exports.getUser = (request, response) => {
+  let userData = {};
+  usersRef
+    .doc(`${request.user.userName}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        userData.credentials = doc.data();
+        return likesRef
+          .where("userName", "==", request.user.userName)
+          .get()
+          .then((data) => {
+            userData.likes = [];
+            data.forEach((doc) => {
+              userData.likes.push(doc.data());
+            });
+            return response.json(userData);
+          })
+          .catch((error) => {
+            console.error(error);
+            return response.status(500).json({ error: error.code });
+          });
+      }
+    });
 };

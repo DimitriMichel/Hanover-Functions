@@ -3,13 +3,11 @@ const isEmpty = (string) => {
   if (string.trim() === "") return true;
   else return false;
 };
-
 const isEmail = (email) => {
   const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   if (email.match(regEx)) return true;
   else return false;
 };
-
 //Registration Validator
 exports.validateRegistrationData = (data) => {
   //Validators & Errors Object
@@ -37,7 +35,6 @@ exports.validateRegistrationData = (data) => {
     valid: Object.keys(errors).length === 0,
   };
 };
-
 //Login Validator
 exports.validateLoginData = (data) => {
   //Check for any login errors in Errors object
@@ -56,3 +53,15 @@ exports.validateLoginData = (data) => {
     valid: Object.keys(errors).length === 0,
   };
 };
+// Clean Up User Details
+exports.reduceUserDetails = (data) => {
+  let userDetails = {};
+  if (!isEmpty(data.bio.trim())) userDetails.bio = data.bio;
+  if (data.length > 50) {
+    return response.json({
+      error: `Character Limit is 14 you have used ${userDetails.bio.length} characters`,
+    });
+  }
+  return userDetails;
+};
+
