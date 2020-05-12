@@ -23,6 +23,7 @@ module.exports = (request, response, next) => {
         })
         .then((ref) => {
             request.user.userName = ref.docs[0].data().userName;
+            request.user.imageUrl = ref.docs[0].data().imageUrl;
             return next(); // proceed past authorization to request ex (app.get("/stocks)) --> Auth --> "/stocks" endpoint
         })
         .catch((error) => {

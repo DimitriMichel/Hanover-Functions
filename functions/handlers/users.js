@@ -57,8 +57,8 @@ exports.registerUser = (request, response) => {
       const userCredentials = {
         userName: newUser.userName,
         email: newUser.email,
-        imageUrl: `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${noImage}?alt=media`,
         createdAt: new Date().toISOString(),
+        imageUrl: `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${noImage}?alt=media`,
         userID,
       };
       usersRef.doc(`${newUser.userName}`).set(userCredentials);

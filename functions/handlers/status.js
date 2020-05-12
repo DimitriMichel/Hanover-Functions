@@ -1,5 +1,5 @@
 // DB Status Document Collection Reference
-const { statusRef, commentsRef } = require("../utils/admin");
+const { db, statusRef, commentsRef, likesRef } = require("../utils/admin");
 
 //Get list of user status
 exports.getAllStatus = (request, response) => {
@@ -31,13 +31,18 @@ exports.postStatus = (request, response) => {
   const newStatus = {
     body: request.body.body,
     userName: request.body.userName,
+    userImage: request.user.imageUrl,
     createdAt: new Date().toISOString(),
     tickerTags: tickers,
+    likeCount: 0,
+    commentCount: 0,
   };
   statusRef
     .add(newStatus)
     .then((doc) => {
-      response.json({ message: `New document ${doc.id} added to collection!` });
+      const responseStatus = newStatus;
+      responseStatus.statusID = doc.id;
+      response.json(responseStatus);
     })
     .catch((error) => {
       response.status(500).json({ error: "Something Went Wrong" });
@@ -78,6 +83,7 @@ exports.getStatus = (request, response) => {
 };
 //Comments on a Status
 exports.commentOnStatus = (request, response) => {
+  //Prevent empty strings from going to database
   if (request.body.body.trim() === "")
     return response.status(400).json({ comment: "Cannot not be empty" });
   //Character Limiter
@@ -86,6 +92,8 @@ exports.commentOnStatus = (request, response) => {
       .status(400)
       .json({ comment: "Cannot be longer than than 160 characters." });
   }
+  console.log(request.user);
+
   const newComment = {
     body: request.body.body,
     createdAt: new Date().toISOString(),
@@ -113,5 +121,49 @@ exports.commentOnStatus = (request, response) => {
     .catch((err) => {
       console.log(err);
       response.status(500).json({ error: "Something went wrong" });
+    });
+};
+exports.likeStatus = (request, response) => {
+  const likeDoc = likesRef
+    .where("userName", "==", request.user.userName)
+    .where("statusID", "==", request.params.statusID)
+    .limit(1);
+
+  const statusRef = db.doc(`/status/${request.params.statusID}`);
+  let statusData;
+
+  statusRef
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        statusData = doc.data();
+        statusData.statusID = doc.id;
+        return likesRef.get();
+      } else {
+        return response.status(404).json({ error: "Status not found" });
+      }
+    })
+    .then((data) => {
+      if (data.empty) {
+        return db
+          .collection("likes")
+          .add({
+            statusID: request.params.statusID,
+            userName: request.user.userName,
+          })
+          .then(() => {
+            statusData.likeCount++;
+            return statusRef.update({ likeCount: statusData.likeCount });
+          })
+          .then(() => {
+            return response.json(statusData);
+          });
+      } else {
+        return response.status(400).json({ error: "Status already liked" });
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      response.status(500).json({ error: err.code });
     });
 };

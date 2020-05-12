@@ -4,7 +4,7 @@ const app = express();
 
 //Route Functions
 const { getAllStocks, postStock } = require("./handlers/stocks");
-const { getAllStatus, postStatus, getStatus, commentOnStatus } = require("./handlers/status");
+const { getAllStatus, postStatus, getStatus, commentOnStatus, likeStatus} = require("./handlers/status");
 const {
   registerUser,
   loginUser,
@@ -24,8 +24,11 @@ app.post("/stock", FBAuth, postStock);
 app.get("/statuses", getAllStatus);
 app.post("/status", FBAuth, postStatus);
 app.get("/status/:statusID", getStatus);
-app.get("/status/:statusID/comment",FBAuth, commentOnStatus);
-app.get("/status/:statusID/like", likeStatus);
+app.post("/status/:statusID/like",FBAuth,likeStatus);
+//app.post("/status/:statusID/unlike",FBAuth,unlikeStatus);
+app.post("/status/:statusID/comment",FBAuth, commentOnStatus);
+
+
 
 // TODO: Delete Status
 // TODO: Like Status
