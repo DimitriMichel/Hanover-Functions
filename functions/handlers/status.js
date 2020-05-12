@@ -23,7 +23,7 @@ exports.getAllStatus = (request, response) => {
     .catch((error) => console.log(error));
 };
 //
-// Send one user status to DB
+// Send a Status
 //
 exports.postStatus = (request, response) => {
   //Parse request body for stock tickers --> "Wow $AMZN looks like a buy!" // $AMZN is added to tickerTags
@@ -54,7 +54,7 @@ exports.postStatus = (request, response) => {
     });
 };
 //
-//Get Specific User Status
+//Get a Status
 //
 exports.getStatus = (request, response) => {
   let statusData = {};
@@ -88,29 +88,29 @@ exports.getStatus = (request, response) => {
     });
 };
 //
-//Delete a specific Status
+//Delete a Status
 //
 exports.deleteStatus = (request, response) => {
   const status = db.doc(`/status/${request.params.statusID}`);
   status
-      .get()
-      .then((doc) => {
-        if (!doc.exists) {
-          return response.status(404).json({ error: 'Status not found' });
-        }
-        if (doc.data().userName !== request.user.userName) {
-          return response.status(403).json({ error: 'Unauthorized' });
-        } else {
-          return status.delete();
-        }
-      })
-      .then(() => {
-        response.json({ message: 'Status deleted successfully' });
-      })
-      .catch((err) => {
-        console.error(err);
-        return response.status(500).json({ error: err.code });
-      });
+    .get()
+    .then((doc) => {
+      if (!doc.exists) {
+        return response.status(404).json({ error: "Status not found" });
+      }
+      if (doc.data().userName !== request.user.userName) {
+        return response.status(403).json({ error: "Unauthorized" });
+      } else {
+        return status.delete();
+      }
+    })
+    .then(() => {
+      response.json({ message: "Status deleted successfully" });
+    })
+    .catch((err) => {
+      console.error(err);
+      return response.status(500).json({ error: err.code });
+    });
 };
 //
 //Comment on a Status
