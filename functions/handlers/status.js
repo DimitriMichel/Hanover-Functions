@@ -1,6 +1,8 @@
 // DB Status Document Collection Reference
 const { db, statusRef, commentsRef, likesRef } = require("../utils/admin");
-
+//
+//Status Functions
+//
 //Get list of user status
 exports.getAllStatus = (request, response) => {
   statusRef
@@ -20,7 +22,9 @@ exports.getAllStatus = (request, response) => {
     })
     .catch((error) => console.log(error));
 };
+//
 // Send one user status to DB
+//
 exports.postStatus = (request, response) => {
   //Parse request body for stock tickers --> "Wow $AMZN looks like a buy!" // $AMZN is added to tickerTags
   const tickerRegex = /(\$[A-Z]{1,5}\b)/g;
@@ -49,7 +53,9 @@ exports.postStatus = (request, response) => {
       console.error(error);
     });
 };
+//
 //Get Specific User Status
+//
 exports.getStatus = (request, response) => {
   let statusData = {};
 
@@ -81,7 +87,34 @@ exports.getStatus = (request, response) => {
       response.status(500).json({ error: error.code });
     });
 };
-//Comments on a Status
+//
+//Delete a specific Status
+//
+exports.deleteStatus = (request, response) => {
+  const status = db.doc(`/status/${request.params.statusID}`);
+  status
+      .get()
+      .then((doc) => {
+        if (!doc.exists) {
+          return response.status(404).json({ error: 'Status not found' });
+        }
+        if (doc.data().userName !== request.user.userName) {
+          return response.status(403).json({ error: 'Unauthorized' });
+        } else {
+          return status.delete();
+        }
+      })
+      .then(() => {
+        response.json({ message: 'Status deleted successfully' });
+      })
+      .catch((err) => {
+        console.error(err);
+        return response.status(500).json({ error: err.code });
+      });
+};
+//
+//Comment on a Status
+//
 exports.commentOnStatus = (request, response) => {
   //Prevent empty strings from going to database
   if (request.body.body.trim() === "")
@@ -92,8 +125,7 @@ exports.commentOnStatus = (request, response) => {
       .status(400)
       .json({ comment: "Cannot be longer than than 160 characters." });
   }
-  console.log(request.user);
-
+  //New Comment request structure
   const newComment = {
     body: request.body.body,
     createdAt: new Date().toISOString(),
@@ -101,8 +133,6 @@ exports.commentOnStatus = (request, response) => {
     userName: request.user.userName,
     userImage: request.user.imageUrl,
   };
-  console.log(newComment);
-
   statusRef
     .doc(`${request.params.statusID}`)
     .get()
@@ -118,11 +148,14 @@ exports.commentOnStatus = (request, response) => {
     .then(() => {
       response.json(newComment);
     })
-    .catch((err) => {
-      console.log(err);
+    .catch((error) => {
+      console.log(error);
       response.status(500).json({ error: "Something went wrong" });
     });
 };
+//
+//Like a status
+//
 exports.likeStatus = (request, response) => {
   const likeDoc = likesRef
     .where("userName", "==", request.user.userName)
@@ -138,15 +171,14 @@ exports.likeStatus = (request, response) => {
       if (doc.exists) {
         statusData = doc.data();
         statusData.statusID = doc.id;
-        return likesRef.get();
+        return likeDoc.get();
       } else {
         return response.status(404).json({ error: "Status not found" });
       }
     })
     .then((data) => {
       if (data.empty) {
-        return db
-          .collection("likes")
+        return likesRef
           .add({
             statusID: request.params.statusID,
             userName: request.user.userName,
@@ -162,8 +194,52 @@ exports.likeStatus = (request, response) => {
         return response.status(400).json({ error: "Status already liked" });
       }
     })
-    .catch((err) => {
-      console.error(err);
-      response.status(500).json({ error: err.code });
+    .catch((error) => {
+      console.error(error);
+      response.status(500).json({ error: error.code });
+    });
+};
+//
+//Unlike a status
+//
+exports.unlike = (request, response) => {
+  const likeDoc = likesRef
+    .where("userName", "==", request.user.userName)
+    .where("statusID", "==", request.params.statusID)
+    .limit(1);
+
+  const statusRef = db.doc(`/status/${request.params.statusID}`);
+  let statusData;
+
+  statusRef
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        statusData = doc.data();
+        statusData.statusID = doc.id;
+        return likeDoc.get();
+      } else {
+        return response.status(404).json({ error: "Status not found" });
+      }
+    })
+    .then((data) => {
+      if (data.empty) {
+        return response.status(400).json({ error: "Status not liked" });
+      } else {
+        return db
+          .doc(`/likes/${data.docs[0].id}`)
+          .delete()
+          .then(() => {
+            statusData.likeCount--;
+            return statusRef.update({ likeCount: statusData.likeCount });
+          })
+          .then(() => {
+            response.json(statusData);
+          });
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      response.status(500).json({ error: error.code });
     });
 };
