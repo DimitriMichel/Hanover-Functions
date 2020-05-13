@@ -1,5 +1,11 @@
 // DB Stock Document Collection Reference
-const { admin, usersRef, likesRef } = require("../utils/admin");
+const {
+  db,
+  admin,
+  usersRef,
+  likesRef,
+  notificationsRef,
+} = require("../utils/admin");
 
 // Initialize Firebase
 const firebaseConfig = require("../utils/config");
@@ -14,8 +20,9 @@ const {
   reduceUserDetails,
 } = require("../utils/validators");
 /*User Route Functions*/
-
+//
 //Register A New User
+//
 exports.registerUser = (request, response) => {
   const newUser = {
     email: request.body.email,
@@ -76,8 +83,9 @@ exports.registerUser = (request, response) => {
       }
     });
 };
-
+//
 //Login User
+//
 exports.loginUser = (request, response) => {
   const user = {
     email: request.body.email,
@@ -107,8 +115,9 @@ exports.loginUser = (request, response) => {
       }
     });
 };
-
+//
 // Upload an image
+//
 exports.uploadImage = (request, response) => {
   // Bus Boy upload docs https://github.com/mscdex/busboy#readme
   const BusBoy = require("busboy");
@@ -176,8 +185,9 @@ exports.uploadImage = (request, response) => {
   });
   busboy.end(request.rawBody);
 };
-
+//
 // Add user details
+//
 exports.addUserDetails = (request, response) => {
   let userDetails = reduceUserDetails(request.body);
   usersRef
@@ -191,8 +201,9 @@ exports.addUserDetails = (request, response) => {
       return response.status(500).json({ error: error.code });
     });
 };
-
-//Get Authenticated User's Details
+//
+//Get User Details
+//
 exports.getUser = (request, response) => {
   let userData = {};
   usersRef
@@ -217,4 +228,67 @@ exports.getUser = (request, response) => {
           });
       }
     });
+};
+//
+// Get the Authenticated/Logged in user's own details
+//
+exports.getAuthenticatedUser = (request, response) => {
+  let userData = {};
+  db.doc(`/users/${request.user.userName}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        userData.credentials = doc.data();
+        return likesRef.where("userName", "==", request.user.userName).get();
+      }
+    })
+    .then((data) => {
+      userData.likes = [];
+      data.forEach((doc) => {
+        userData.likes.push(doc.data());
+      });
+      return notificationsRef
+        .where("recipient", "==", request.user.userName)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
+    })
+    .then((data) => {
+      userData.notifications = [];
+      data.forEach((doc) => {
+        userData.notifications.push({
+          recipient: doc.data().recipient,
+          sender: doc.data().sender,
+          createdAt: doc.data().createdAt,
+          statusID: doc.data().statusID,
+          type: doc.data().type,
+          read: doc.data().read,
+          notificationID: doc.id,
+        });
+      });
+      return response.json(userData);
+    })
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
+};
+//
+//After notifications are clicked they are marked "read"
+//
+exports.markNotificationsRead = (request, response) => {
+  let batch = db.batch();
+  request.body.forEach((notificationID) => {
+    const notification = db.doc(`/notifications/${notificationID}`);
+    batch.update(notification, { read: true });
+  });
+  batch
+      .commit()
+      .then(() => {
+        return response.json({ message: "Notifications Read" });
+      })
+      .catch((error) => {
+        console.error(error);
+        return response.status(500).json({ error: error.code });
+      });
 };

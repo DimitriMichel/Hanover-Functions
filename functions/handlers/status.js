@@ -16,6 +16,9 @@ exports.getAllStatus = (request, response) => {
           body: doc.data().body,
           userName: doc.data().userName,
           createdAt: doc.data().createdAt,
+          commentCount: doc.data().commentCount,
+          likeCount: doc.data().likeCount,
+          userImage: doc.data().userImage,
         });
       });
       return response.json(status);
@@ -202,7 +205,7 @@ exports.likeStatus = (request, response) => {
 //
 //Unlike a status
 //
-exports.unlike = (request, response) => {
+exports.unlikeStatus = (request, response) => {
   const likeDoc = likesRef
     .where("userName", "==", request.user.userName)
     .where("statusID", "==", request.params.statusID)
