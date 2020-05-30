@@ -6,6 +6,12 @@ const { db } = require("./utils/admin");
 //CORS
 const cors = require('cors');
 app.use(cors());
+
+app.use(cors({
+    origin: ['http://localhost:3000'],
+    credentials: true
+}));
+
 //Route Functions
 const { getAllStocks, postStock } = require("./handlers/stocks");
 const {
