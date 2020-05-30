@@ -2,6 +2,10 @@ const functions = require("firebase-functions");
 const express = require("express");
 const app = express();
 const { db } = require("./utils/admin");
+
+//CORS
+const cors = require('cors');
+app.use(cors());
 //Route Functions
 const { getAllStocks, postStock } = require("./handlers/stocks");
 const {
